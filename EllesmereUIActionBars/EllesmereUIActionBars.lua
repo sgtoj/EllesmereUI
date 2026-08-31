@@ -8933,6 +8933,15 @@ local function BuildVisibilityString(info, s, visOverride)
         if s.visHideWithTarget then visOptHide = visOptHide .. "[exists] hide; " end
         if s.visHideNoEnemy then visOptHide = visOptHide .. "[noharm] hide; " end
         if s.visHideWithEnemy then visOptHide = visOptHide .. "[harm] hide; " end
+        -- Override / possess. Secure clauses rather than a Lua verdict because both
+        -- states usually begin IN combat, where a driver rewrite is blocked: the token
+        -- keeps re-evaluating, a written "hide" could not. The Show lanes are inert on
+        -- the bars whose hide-prefix below already carries [overridebar] (bars 2-10) and
+        -- on the Pet Bar wrapper, so the options page locks the rows there.
+        if s.visHideOverrideBar then visOptHide = visOptHide .. "[overridebar] hide; " end
+        if s.visOnlyOverrideBar then visOptHide = visOptHide .. "[nooverridebar] hide; " end
+        if s.visHidePossessBar then visOptHide = visOptHide .. "[possessbar] hide; " end
+        if s.visOnlyPossessBar then visOptHide = visOptHide .. "[nopossessbar] hide; " end
     end
 
     -- Authoritative multi-select set. Explicit overrides (toggle keybind,

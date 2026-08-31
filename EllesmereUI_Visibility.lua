@@ -953,6 +953,18 @@ function EUI.BuildVisibilityDriverStringAny(prefix, vm, opts, extraConstrained, 
     if opts.visHideNoEnemy and not opts.visHideWithEnemy then
         axes = axes + 1; emit("harm")
     end
+    -- Override / possess axes: one token per lane, so they need none of the
+    -- multi-disjunct shape the group axis above has.
+    if opts.visOnlyOverrideBar and not opts.visHideOverrideBar then
+        axes = axes + 1; emit("overridebar")
+    elseif opts.visHideOverrideBar and not opts.visOnlyOverrideBar then
+        axes = axes + 1; emit("nooverridebar")
+    end
+    if opts.visOnlyPossessBar and not opts.visHidePossessBar then
+        axes = axes + 1; emit("possessbar")
+    elseif opts.visHidePossessBar and not opts.visOnlyPossessBar then
+        axes = axes + 1; emit("nopossessbar")
+    end
 
     -- Dragonriding axis. NOT(advflyable AND flying) has no single bracket form, so the
     -- negative lane becomes the TAIL: once no other disjunct matched, hide while
