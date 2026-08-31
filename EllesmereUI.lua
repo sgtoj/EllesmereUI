@@ -12112,6 +12112,8 @@ EllesmereUI.VIS_OPT_KEYS = {
     "visHideNoEnemy", "visHideWithEnemy",
     "visOnlyResting", "visHideResting",
     "visOnlyVehicle", "visHideVehicle",
+    "visOnlyOverrideBar", "visHideOverrideBar",
+    "visOnlyPossessBar", "visHidePossessBar",
 }
 
 -- Cache player class once at load time (never changes).
@@ -12186,6 +12188,24 @@ function EllesmereUI.IsPlayerSkyriding()
         return canGlide == true
     end
     return false
+end
+
+-- Override / possess probes, the Lua half of the two bar-replacement axes. Both are
+-- deliberate counterparts to their macro tokens: [overridebar] is HasOverrideActionBar
+-- and [possessbar] is IsPossessBarVisible, so the probe and the token can never
+-- disagree the way [mounted] and the druid forms do (no AnyDriverLaneFixups entry).
+-- Global first, then the C_ActionBar namespace this family is migrating into, then a
+-- false floor -- the same shape Action Bars' safe API wrappers already use.
+function EllesmereUI.HasOverrideBar()
+    local fn = HasOverrideActionBar or (C_ActionBar and C_ActionBar.HasOverrideActionBar)
+    return (fn and fn()) and true or false
+end
+
+-- Possess is NOT a vehicle: mind control and Eye of Kilrogg swap the stance bar for a
+-- two-button bar and page bar 1, while UnitInVehicle (the In Vehicle axis) stays false.
+function EllesmereUI.IsPossessBarActive()
+    local fn = IsPossessBarVisible or (C_ActionBar and C_ActionBar.IsPossessBarVisible)
+    return (fn and fn()) and true or false
 end
 
 -- Non-macro visibility subset: the options that CAN'T be expressed in a secure [macro] condition
@@ -12313,6 +12333,23 @@ function EllesmereUI.CheckVisibilityOptions(opts)
         if UnitExists("target") and UnitCanAttack("player", "target") then return true end
     end
 
+    -- Override / possess axes. Here rather than in the NonMacro subset for the same
+    -- reason the two target axes are: [overridebar] and [possessbar] are real macro
+    -- conditions, so a secure caller compiles them into its own driver and keeps them
+    -- live inside combat -- which is when override and possess bars mostly appear. Only
+    -- the insecure callers, which have no driver, resolve them here.
+    if opts.visOnlyOverrideBar or opts.visHideOverrideBar then
+        local override = EllesmereUI.HasOverrideBar()
+        if opts.visOnlyOverrideBar and not override then return true end
+        if opts.visHideOverrideBar and override then return true end
+    end
+
+    if opts.visOnlyPossessBar or opts.visHidePossessBar then
+        local possess = EllesmereUI.IsPossessBarActive()
+        if opts.visOnlyPossessBar and not possess then return true end
+        if opts.visHidePossessBar and possess then return true end
+    end
+
     return false
 end
 
@@ -12345,6 +12382,13 @@ EllesmereUI.VIS_OPT_AXES = {
       probe = function()
           return (UnitExists("target") and UnitCanAttack("player", "target")) and true or false
       end },
+    -- Neither luaOnly nor needsEdge: the tokens agree with the probes exactly, so every
+    -- consumer that compiles a driver gets a term that re-evaluates in combat, and the
+    -- insecure ones fall back to the probe through CheckVisibilityOptions.
+    { show = "visOnlyOverrideBar", hide = "visHideOverrideBar",
+      probe = function() return EllesmereUI.HasOverrideBar() end },
+    { show = "visOnlyPossessBar", hide = "visHidePossessBar",
+      probe = function() return EllesmereUI.IsPossessBarActive() end },
 }
 
 -- Whether this axis has to be resolved in Lua for a consumer with these edges.
