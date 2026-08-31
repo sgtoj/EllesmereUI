@@ -1177,6 +1177,52 @@ initFrame:SetScript("OnEvent", function(self)
         s.combatShowEnabled = (v == "in_combat")
     end
 
+    -- Which bars each bar-replacement axis can actually act on, mirroring the driver
+    -- shapes in BuildVisibilityString. Every other bar already hides on that state
+    -- unconditionally, so its Show lane would leave the bar permanently hidden and its
+    -- Hide lane would be a no-op -- the rows are locked there, and the strip below
+    -- closes the sync copy as the only other route a lane has to reach one.
+    --
+    -- Override: bars 2-10 carry [overridebar] in their hide-prefix and the Pet Bar
+    -- wrapper demands nooverridebar. Main Bar (which pages to the override actions
+    -- instead of hiding), the Stance Bar and the insecure bars are free.
+    local function AllowsOverrideLanes(barKey)
+        return barKey == "MainBar" or barKey == "StanceBar"
+            or VISIBILITY_ONLY[barKey] or false
+    end
+
+    -- Possess: only the Pet Bar wrapper mentions nopossessbar, so every other bar --
+    -- bars 2-10 included -- is genuinely visible during a possess and can act on it.
+    local function AllowsPossessLanes(barKey)
+        return barKey ~= "PetBar"
+    end
+
+    -- Lanes the destination bar cannot express, cleared after a sync copy the same way
+    -- noGroupModes strips group items. Shared by the copy and the equality check below
+    -- so a correct copy never reports itself out of sync.
+    local function StripLockedVisLanes(dst, dstKey)
+        if not AllowsOverrideLanes(dstKey) then
+            dst.visOnlyOverrideBar, dst.visHideOverrideBar = nil, nil
+        end
+        if not AllowsPossessLanes(dstKey) then
+            dst.visOnlyPossessBar, dst.visHidePossessBar = nil, nil
+        end
+    end
+
+    -- Sync-icon equality that matches what CopyVisibilitySettings actually does:
+    -- VisFullEquals walks every option key, so comparing the locked lanes raw against a
+    -- bar that has them stripped would report "not synced" forever after a correct copy.
+    local _visSyncScratch = {}
+    local function VisEqualsForTarget(src, dst, dstKey)
+        if AllowsOverrideLanes(dstKey) and AllowsPossessLanes(dstKey) then
+            return EllesmereUI.VisFullEquals(src, "barVisibility", dst, "barVisibility")
+        end
+        wipe(_visSyncScratch)
+        for k, v in pairs(src) do _visSyncScratch[k] = v end
+        StripLockedVisLanes(_visSyncScratch, dstKey)
+        return EllesmereUI.VisFullEquals(_visSyncScratch, "barVisibility", dst, "barVisibility")
+    end
+
     local function CopyVisibilitySettings(dst, src, dstKey)
         -- The merged Visibility control owns the option booleans too, so every copy
         -- carries them alongside the mode selection.
@@ -1184,6 +1230,7 @@ initFrame:SetScript("OnEvent", function(self)
         if optKeys then
             for i = 1, #optKeys do dst[optKeys[i]] = src[optKeys[i]] or nil end
         end
+        StripLockedVisLanes(dst, dstKey)
         if VisibilityCompat then
             -- Pet Bar ignores group modes: strip them from a copied multi-selection.
             VisibilityCompat.Copy(dst, src, dstKey == "PetBar")
@@ -1707,6 +1754,19 @@ initFrame:SetScript("OnEvent", function(self)
             -- edge event; secure bars' drivers re-evaluate natively and never lock.
             if IsDataBar() then visCaps.luaDragonriding = true end
 
+            -- Override / possess rows lock on the bars that cannot act on them (see
+            -- AllowsOverrideLanes / AllowsPossessLanes). lockedFns rather than build-time
+            -- flags so they follow the bar selector without a page rebuild.
+            visCaps.lockedFns = {
+                overrideBar = function() return not AllowsOverrideLanes(SelectedKey()) end,
+                possessBar  = function() return not AllowsPossessLanes(SelectedKey()) end,
+            }
+            visCaps.lockedTooltips = visCaps.lockedTooltips or {}
+            visCaps.lockedTooltips.overrideBar =
+                "This bar is already hidden whenever the override bar replaces your abilities. Only Action Bar 1, the Stance Bar and the Menu/Bags/XP bars can change this."
+            visCaps.lockedTooltips.possessBar =
+                "The Pet Bar is already hidden while you are possessing another unit."
+
             visRow1, h = EllesmereUI.BuildVisibilityRow(W, parent, y,
                 { getStore = function()
                       local s = SB()
@@ -1761,7 +1821,7 @@ initFrame:SetScript("OnEvent", function(self)
                         local src = SB()
                         for _, key in ipairs(GROUP_BAR_ORDER) do
                             local dst = EAB.db.profile.bars[key]
-                            if not EllesmereUI.VisFullEquals(src, "barVisibility", dst, "barVisibility") then return false end
+                            if not VisEqualsForTarget(src, dst, key) then return false end
                             if (src.dragShow or false) ~= (dst.dragShow or false) then return false end
                         end
                         return true

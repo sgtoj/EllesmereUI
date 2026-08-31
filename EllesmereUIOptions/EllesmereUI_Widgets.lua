@@ -8577,7 +8577,8 @@ end
 --                            store; the marker replaces the shared value, so it has to
 --                            reach exactly the stores that value does.
 --      caps                = { noMouseover, noGroupModes, noOverrideMouseover,
---                              luaDragonriding, lockedTooltips }
+--                              luaDragonriding, lockedTooltips,
+--                              lockedFns = { [rowKey] = fn -> bool } live per-row lock }
 --      applyScalarFn       = optional fn(store, mode) for scalar side effects
 --      getOption/setOption = optional fn(key)/fn(key, value) when option booleans live
 --                            outside getStore() (Resource Bars writes three stores)
@@ -8649,6 +8650,16 @@ EllesmereUI.VIS_ROW_ITEMS = {
     { key = "vehicle", label = "In Vehicle", axis = "opt",
       show = "visOnlyVehicle", hide = "visHideVehicle",
       tooltip = "While seated in a vehicle." },
+    -- Separate axes rather than lanes of In Vehicle: all three states can occur without
+    -- each other, and keeping them apart lets one selection cover any combination (three
+    -- Hide lanes under Match All hide on any of them, three Show lanes under Match Any
+    -- show on any of them).
+    { key = "overrideBar", label = "Override Bar", axis = "opt",
+      show = "visOnlyOverrideBar", hide = "visHideOverrideBar",
+      tooltip = "While Blizzard's override action bar replaces your abilities: quest and boss special actions, Darkmoon Faire rides and some vehicles." },
+    { key = "possessBar", label = "Possess Bar", axis = "opt",
+      show = "visOnlyPossessBar", hide = "visHidePossessBar",
+      tooltip = "While possessing another unit, such as Mind Control. This is not a vehicle, so In Vehicle does not cover it." },
 }
 
 -------------------------------------------------------------------------------
@@ -8737,6 +8748,16 @@ function EllesmereUI.AttachVisibilityChecklist(region, opts)
             if caps.luaDragonriding and (def.key == "skyAirborne" or def.key == "notSkyAirborne") then
                 item.lockedFn = function() return not EllesmereUI._hasGlidingEvent end
                 item.lockedTooltip = "Requires a client with gliding events."
+            end
+            -- Live per-row lock for a condition that is inert on only SOME of the
+            -- module's targets (Action Bars: the bars whose driver already hides on
+            -- [overridebar]/[possessbar]). A function rather than a build-time flag so it
+            -- follows the page's own bar selector without a rebuild.
+            local capLock = caps.lockedFns and caps.lockedFns[def.key]
+            if capLock then
+                item.lockedFn = capLock
+                item.lockedTooltip = (caps.lockedTooltips and caps.lockedTooltips[def.key])
+                    or item.lockedTooltip
             end
             if def.modifier then
                 item.lockedFn = OrphanActive
