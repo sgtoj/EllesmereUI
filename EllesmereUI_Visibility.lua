@@ -165,6 +165,21 @@ visFrame:RegisterEvent("PLAYER_UPDATE_RESTING")
 -- other units' vehicle changes are irrelevant to these axes.
 visFrame:RegisterUnitEvent("UNIT_ENTERED_VEHICLE", "player")
 visFrame:RegisterUnitEvent("UNIT_EXITED_VEHICLE", "player")
+-- Override / possess edges. Only the INSECURE consumers need these: a secure caller
+-- compiles [overridebar]/[possessbar] into its driver and never waits on an event.
+-- UPDATE_POSSESS_BAR has no prior use in this addon, so it is probed rather than
+-- registered blind, the same way PLAYER_IS_GLIDING_CHANGED is below.
+visFrame:RegisterEvent("UPDATE_OVERRIDE_ACTIONBAR")
+do
+    local ok
+    if C_EventUtils and C_EventUtils.IsEventValid then
+        ok = C_EventUtils.IsEventValid("UPDATE_POSSESS_BAR") and true or false
+        if ok then visFrame:RegisterEvent("UPDATE_POSSESS_BAR") end
+    else
+        ok = pcall(visFrame.RegisterEvent, visFrame, "UPDATE_POSSESS_BAR") and true or false
+    end
+    EUI._hasPossessBarEvent = ok
+end
 -- Dragonriding edges: mount-capability changes fire PLAYER_CAN_GLIDE_CHANGED
 -- (repo-proven event); takeoff/landing while staying mounted fires
 -- PLAYER_IS_GLIDING_CHANGED, which is probed because nothing registered it before this

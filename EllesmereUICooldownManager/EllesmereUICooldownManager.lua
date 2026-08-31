@@ -10166,6 +10166,11 @@ eventFrame:RegisterEvent("PLAYER_UPDATE_RESTING")
 -- Vehicle edges for the In Vehicle axis (player-filtered; same reasoning).
 eventFrame:RegisterUnitEvent("UNIT_ENTERED_VEHICLE", "player")
 eventFrame:RegisterUnitEvent("UNIT_EXITED_VEHICLE", "player")
+-- Possess edge for the Possess Bar axis. UPDATE_OVERRIDE_ACTIONBAR is already
+-- registered above for the action scan; the dispatch below adds the visibility pass.
+if EllesmereUI._hasPossessBarEvent then
+    eventFrame:RegisterEvent("UPDATE_POSSESS_BAR")
+end
 -- Dragonriding visibility modes: capability edge (mount/dismount/zone) plus
 -- the airborne edge (takeoff/landing while staying mounted; probed at load
 -- in EllesmereUI_Visibility.lua -- absent = the checklist items lock).
@@ -10291,6 +10296,12 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, updateInfo, arg3)
         OnProcGlowEvent(event, unit)  -- unit = spellID (first arg after event)
         return
     end
+    -- Override Bar axis. This edge feeds the keybind scan below too, and that branch
+    -- returns, so the visibility pass has to run first and fall through rather than
+    -- join the visibility branch further down (which it would never reach).
+    if event == "UPDATE_OVERRIDE_ACTIONBAR" then
+        _CDMApplyVisibility()
+    end
     if event == "UPDATE_BINDINGS" or event == "ACTIONBAR_SLOT_CHANGED"
        or event == "ACTIONBAR_PAGE_CHANGED" or event == "UPDATE_BONUS_ACTIONBAR"
        or event == "UPDATE_OVERRIDE_ACTIONBAR" or event == "UPDATE_VEHICLE_ACTIONBAR" then
@@ -10378,7 +10389,8 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, updateInfo, arg3)
         return
     end
     if event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_UPDATE_RESTING"
-       or event == "UNIT_ENTERED_VEHICLE" or event == "UNIT_EXITED_VEHICLE" then
+       or event == "UNIT_ENTERED_VEHICLE" or event == "UNIT_EXITED_VEHICLE"
+       or event == "UPDATE_POSSESS_BAR" then
         _CDMApplyVisibility()
         return
     end

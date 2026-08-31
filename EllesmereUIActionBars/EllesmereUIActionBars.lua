@@ -14070,6 +14070,18 @@ function EAB:FinishSetup()
     self:RegisterEvent("UNIT_EXITED_VEHICLE", function()
         self:UpdateHousingVisibility()
     end)
+    -- Override / possess edges for the managed non-secure bars (Menu, Bags, XP, Rep,
+    -- data bars), which resolve those axes in Lua. The secure bars need neither: their
+    -- driver carries [overridebar]/[possessbar] and re-evaluates natively, in combat
+    -- included -- which is where both states normally start.
+    self:RegisterEvent("UPDATE_OVERRIDE_ACTIONBAR", function()
+        self:UpdateHousingVisibility()
+    end)
+    if EllesmereUI._hasPossessBarEvent then
+        self:RegisterEvent("UPDATE_POSSESS_BAR", function()
+            self:UpdateHousingVisibility()
+        end)
+    end
     self:RegisterEvent("UPDATE_SHAPESHIFT_FORM", function()
         self:UpdateHousingVisibility()
     end)

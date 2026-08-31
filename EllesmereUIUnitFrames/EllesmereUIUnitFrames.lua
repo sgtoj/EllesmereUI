@@ -12664,6 +12664,13 @@ function InitializeFrames()
         -- Vehicle edges for the In Vehicle axis (player-filtered; same reasoning).
         frames._visFrame:RegisterUnitEvent("UNIT_ENTERED_VEHICLE", "player")
         frames._visFrame:RegisterUnitEvent("UNIT_EXITED_VEHICLE", "player")
+        -- Override / possess edges: frames on the Lua alpha path resolve those two
+        -- axes here. The ones that do compile a condition driver carry the macro
+        -- tokens instead and need no event.
+        frames._visFrame:RegisterEvent("UPDATE_OVERRIDE_ACTIONBAR")
+        if EllesmereUI._hasPossessBarEvent then
+            frames._visFrame:RegisterEvent("UPDATE_POSSESS_BAR")
+        end
         frames._visFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
         frames._visFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
         -- Dragonriding visibility modes: capability edge plus the airborne

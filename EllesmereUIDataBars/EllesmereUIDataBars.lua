@@ -2457,6 +2457,9 @@ do
         "ZONE_CHANGED_NEW_AREA", "UPDATE_SHAPESHIFT_FORM",
         "PLAYER_ENTERING_WORLD", "PLAYER_UPDATE_RESTING",
         "UNIT_ENTERED_VEHICLE", "UNIT_EXITED_VEHICLE",
+        -- Override edge; these bars are insecure, so both bar-replacement axes resolve
+        -- in Lua. The possess edge is probed below, beside the gliding one.
+        "UPDATE_OVERRIDE_ACTIONBAR",
     }
 
     -- Legacy scalar evaluation for the modes the multi engine declines.
@@ -2544,6 +2547,9 @@ do
             for _, e in ipairs(VIS_EVENTS) do visFrame:RegisterEvent(e) end
             if EllesmereUI._hasGlidingEvent then
                 visFrame:RegisterEvent("PLAYER_IS_GLIDING_CHANGED")
+            end
+            if EllesmereUI._hasPossessBarEvent then
+                visFrame:RegisterEvent("UPDATE_POSSESS_BAR")
             end
             _inCombat = InCombatLockdown() and true or false
         elseif visFrame then
